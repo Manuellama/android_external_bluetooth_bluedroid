@@ -4831,6 +4831,10 @@ void btm_sec_pin_code_request (UINT8 *p_bda)
     tBTM_SEC_DEV_REC *p_dev_rec;
     tBTM_CB          *p_cb = &btm_cb;
 
+#ifdef PORCHE_PAIRING_CONFLICT
+    UINT8 default_pin_code_len = 4;
+    PIN_CODE default_pin_code = {0x30, 0x30, 0x30, 0x30};
+#endif
     BTM_TRACE_EVENT3 ("btm_sec_pin_code_request()  State: %s, BDA:%04x%08x",
                       btm_pair_state_descr(btm_cb.pairing_state),
                       (p_bda[0]<<8)+p_bda[1], (p_bda[2]<<24)+(p_bda[3]<<16)+(p_bda[4]<<8)+p_bda[5] );
@@ -4864,7 +4868,8 @@ void btm_sec_pin_code_request (UINT8 *p_bda)
             BTM_TRACE_EVENT0 ("btm_sec_pin_code_request from remote dev. for local initiated pairing");
             if(! btm_cb.pin_code_len_saved)
             {
-                btsnd_hcic_pin_code_neg_reply (p_bda);
+                btm_sec_change_pairing_state (BTM_PAIR_STATE_WAIT_AUTH_COMPLETE);
+                btsnd_hcic_pin_code_req_reply (p_bda, default_pin_code_len, default_pin_code);
             }
             else
             {
@@ -5898,54 +5903,3 @@ BOOLEAN btm_sec_find_bonded_dev (UINT8 start_idx, UINT8 *p_found_idx, tBTM_SEC_D
 }
 #endif /* BLE_INCLUDED */
 
-/*******************************************************************************
-**
-** Function         btm_sec_set_hid_as_paired
-**
-** Description       Set HID Pointing device as paired or unpaired.
-**
-** Returns         void
-**
-*******************************************************************************/
-void btm_sec_set_hid_as_paired (BD_ADDR bda, BOOLEAN paired)
-{
-
-    tBTM_SEC_DEV_REC *p_dev_rec = btm_find_dev(bda);
-
-    if (p_dev_rec)
-    {
-        if (paired)
-        {
-            p_dev_rec->sec_flags |= BTM_SEC_LINK_KEY_KNOWN;
-        }
-        else
-        {
-            p_dev_rec->sec_flags &= ~BTM_SEC_LINK_KEY_KNOWN;
-        }
-        BTM_TRACE_DEBUG1 ("btm_sec_set_hid_as_paired: p_dev_rec->sec_flags=%04x",
-                p_dev_rec->sec_flags);
-    }
-}
-
-/*******************************************************************************
-**
-** Function         btm_sec_is_a_paired_dev
-**
-** Description       Is the specified device is a paired device
-**
-** Returns          TRUE - dev is paired
-**
-*******************************************************************************/
-BOOLEAN btm_sec_is_a_paired_dev (BD_ADDR bda)
-{
-
-    tBTM_SEC_DEV_REC *p_dev_rec = btm_find_dev(bda);
-    BOOLEAN is_paired = FALSE;
-
-    if (p_dev_rec && (p_dev_rec->sec_flags & BTM_SEC_LINK_KEY_KNOWN))
-    {
-        is_paired = TRUE;
-    }
-    BTM_TRACE_DEBUG1 ("btm_sec_is_a_paired_dev is_paired=%d", is_paired);
-    return(is_paired);
-}
